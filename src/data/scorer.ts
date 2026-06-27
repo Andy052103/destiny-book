@@ -4,7 +4,7 @@ import { questions } from "./questions";
 
 export function calculateResult(answers: Record<number, string>): Personality {
   const scores: Record<number, number> = {};
-  for (let i = 1; i <= 12; i++) scores[i] = 0;
+  for (let i = 1; i <= 15; i++) scores[i] = 0;
 
   Object.entries(answers).forEach(([questionIdStr, optionId]) => {
     const questionId = Number(questionIdStr);

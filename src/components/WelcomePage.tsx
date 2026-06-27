@@ -141,7 +141,17 @@ export default function WelcomePage() {
           transition={{ delay: 2.5, duration: 1 }}
           className="font-body text-xs text-amber-400/40 mt-10 tracking-wider"
         >
-          ✦ 共五十个拷问 · 十二种灵魂卡牌 ✦
+          ✦ 共五十个拷问 · 十五种灵魂卡牌 ✦
+        </motion.p>
+
+        {/* 音乐提示 */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 3, duration: 1 }}
+          className="font-body text-xs text-amber-500/30 mt-4 italic"
+        >
+          ✦ 右上角开启背景音乐，沉浸体验 ✦
         </motion.p>
       </motion.div>
     </div>

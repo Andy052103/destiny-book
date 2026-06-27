@@ -123,7 +123,7 @@ export default function ResultPage() {
         </motion.div>
 
         <p className="font-body text-xs text-amber-400/40 mt-4 italic tracking-wider">
-          命运之书 · 十二种真面目
+          命运之书 · 十五种真面目
         </p>
       </motion.div>
     </div>

@@ -215,6 +215,54 @@ export const personalities: Personality[] = [
       "a straightforward blunt character in silver and gold armor, holding a glowing golden straight bat ready to swing, no curves only straight lines, honest direct gaze, iron and steel aesthetic"
     ),
   },
+  {
+    id: 13,
+    name: "人间清醒",
+    title: "看透一切的毒鸡汤导师",
+    subtitle: "别人在演戏，你在看剧本",
+    description:
+      "你是朋友圈里的'清醒剂'。别人恋爱脑你泼冷水，别人内耗你一句点醒。你不卷不躺，站在旁边看戏，偶尔点评两句，句句扎在要害。你不是冷血，只是太早就把人性的底牌看穿了。你不下场，因为你知道这局游戏的规则。别人觉得你通透得可怕，你只是懒得自欺欺人。你的清醒是盔甲也是牢笼——看透了太多，反而很难再投入。也许偶尔装一次糊涂，会让你活得更轻松。",
+    traits: ["理性通透", "看破不说破", "拒绝内耗", "人间毒鸡汤"],
+    suitableFields: ["投资分析", "心理咨询", "战略顾问", "评论作者"],
+    motto: "我不是冷血，我只是提前看完了剧本，懒得配合演戏。",
+    color: "#2a5a4a",
+    accentColor: "#f0d060",
+    cardImage: buildImage(
+      "a clairvoyant sage holding a glowing golden mirror revealing truth, surrounded by shattered illusions and golden mist, third eye glowing, calm all-knowing expression, lantern of enlightenment,看清迷雾"
+    ),
+  },
+  {
+    id: 14,
+    name: "社交牛逼症",
+    title: "和谁都能聊的气氛组组长",
+    subtitle: "三分钟熟络，五分钟拜把子",
+    description:
+      "你是行走的社交充电宝，走到哪亮到哪。排队能跟前后聊起来，打车能让司机喊你兄弟。你的嘴比嘴还快，你的脸比脸还厚。没有你接不上的话，没有你破不了的冰。你不是在社交，你就是在呼吸。别人社恐你社牛，别人已读不回你语音轰炸。你是每一个饭局的灵魂，每一个冷场的终结者。但热闹散场后，你偶尔也会想——这么多人认识你，真正懂你的又有几个？不过这个念头只持续三秒，因为下一个局又开始了。",
+    traits: ["自来熟", "气氛担当", "话痨本痨", "谁都能聊"],
+    suitableFields: ["销售商务", "活动主持", "社区运营", "公关外交"],
+    motto: "没有我热不起来的场子，如果有，那是我还没到。",
+    color: "#e85a3a",
+    accentColor: "#f0d060",
+    cardImage: buildImage(
+      "a radiant social butterfly character at the center of a golden crowd, multiple speech bubbles and connecting threads of light, magnetic charisma aura, party soul, glowing with infectious energy"
+    ),
+  },
+  {
+    id: 15,
+    name: "emo制造机",
+    title: "深夜网抑云的重度患者",
+    subtitle: "白天哈哈哈，晚上呜呜呜",
+    description:
+      "白天你是人群中的段子手，深夜你是被窝里的流泪猫。你的情绪有开关，一到凌晨十二点自动切到emo模式。一首老歌能让你哭半宿，一条旧动态能让你缅怀三年。你不是不快乐，只是快乐的保质期太短，emo的续航太长。你的朋友圈深夜限定伤感文学，你的歌单全是'这首歌唱的是我'。你把矫情活成了艺术，把伤感酿成了诗意。其实你比谁都清楚自己在演，但那一刻的眼泪是真的。明天太阳升起，你又是那个哈哈哈的人。",
+    traits: ["深夜emo", "文艺忧郁", "网抑云VIP", "伤春悲秋"],
+    suitableFields: ["词曲创作", "文学写作", "摄影艺术", "播客电台"],
+    motto: "不是我爱emo，是这个世界太值得难过了。（明天继续哈哈哈）",
+    color: "#3a4a8c",
+    accentColor: "#c0c8f0",
+    cardImage: buildImage(
+      "a melancholic poet under moonlight, tears turning into golden musical notes, rain drops and starlight, vinyl record playing sadness, midnight blue and gold aesthetic, emotional depth, artistic sorrow"
+    ),
+  },
 ];
 
 export function getPersonality(id: number): Personality {
