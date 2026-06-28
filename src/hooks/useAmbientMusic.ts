@@ -1,143 +1,121 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * 黑金神秘风氛围音乐生成器
+ * 黑金神秘风氛围音乐生成器（轻盈版）
  * 使用 Web Audio API 实时合成，无需外部音频文件
- * - 低沉的 drone 弦乐底色
- * - 空灵的钟声点缀（五声音阶）
- * - 缓慢的呼吸感音量起伏
+ * - 单个柔和 pad 底色（带滤波器缓慢扫描）
+ * - 偶尔点缀的清脆高音（如风铃/星辉）
+ * - 整体薄而透，像薄雾轻烟
  */
 export function useAmbientMusic() {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
-  const droneNodesRef = useRef<{ osc: OscillatorNode; gain: GainNode }[]>([]);
-  const bellTimerRef = useRef<number | null>(null);
-  const breatheTimerRef = useRef<number | null>(null);
+  const padNodesRef = useRef<{ osc: OscillatorNode; gain: GainNode; filter: BiquadFilterNode } | null>(null);
+  const sparkleTimerRef = useRef<number | null>(null);
+  const sweepTimerRef = useRef<number | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(0.35);
+  const [volume, setVolume] = useState(0.25);
 
-  // 五声音阶频率（A 小调五声），神秘悠远
-  const pentatonicScale = [
-    220.0, // A3
-    261.63, // C4
-    293.66, // D4
-    329.63, // E4
-    392.0, // G4
-    440.0, // A4
-    523.25, // C5
-    587.33, // D5
+  // 高音点缀音阶（A 小调五声高音区），清脆如风铃
+  const sparkleScale = [
+    659.25, // E5
+    783.99, // G5
+    880.0,  // A5
+    1046.5, // C6
+    1318.51, // E6
   ];
 
-  /** 创建并启动 drone 底色（三个低频振荡器叠加） */
-  const startDrone = useCallback((ctx: AudioContext, master: GainNode) => {
-    // 根音 A2 + 纯五度 E3 + 八度 A3，形成低沉的持续和弦
-    const droneFreqs = [110.0, 164.81, 220.0];
-    const droneTypes: OscillatorType[] = ["sine", "triangle", "sine"];
+  /** 创建并启动 pad 底色（单音柔和弦） */
+  const startPad = useCallback((ctx: AudioContext, master: GainNode) => {
+    // 根音 A3，柔和正弦波
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
 
-    droneFreqs.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 220.0; // A3
+    osc.detune.value = 0;
 
-      osc.type = droneTypes[i];
-      osc.frequency.value = freq;
+    // 带通滤波，让音色清澈透明
+    filter.type = "lowpass";
+    filter.frequency.value = 800;
+    filter.Q.value = 0.5;
 
-      // 轻微失谐增加厚度
-      osc.detune.value = (i - 1) * 4;
+    // 缓慢渐入
+    gain.gain.value = 0;
+    gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 4);
 
-      // 每个 drone 的增益不同，避免过响
-      const droneLevel = 0.12 / (i + 1);
-      gain.gain.value = 0;
-      gain.gain.linearRampToValueAtTime(droneLevel, ctx.currentTime + 3);
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(master);
 
-      // 低通滤波，让音色更暖
-      const filter = ctx.createBiquadFilter();
-      filter.type = "lowpass";
-      filter.frequency.value = 400;
-      filter.Q.value = 0.8;
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(master);
-
-      osc.start();
-      droneNodesRef.current.push({ osc, gain });
-    });
+    osc.start();
+    padNodesRef.current = { osc, gain, filter };
   }, []);
 
-  /** 播放一声钟声（带衰减包络） */
-  const playBell = useCallback(
+  /** 滤波器缓慢扫描，制造空间感 */
+  const startSweep = useCallback((ctx: AudioContext, filter: BiquadFilterNode) => {
+    const sweep = () => {
+      const now = ctx.currentTime;
+      // 12 秒一个周期：滤波频率在 400-1200 之间缓慢摆动
+      const targetFreq = 400 + Math.random() * 800;
+      filter.frequency.cancelScheduledValues(now);
+      filter.frequency.setValueAtTime(filter.frequency.value, now);
+      filter.frequency.linearRampToValueAtTime(targetFreq, now + 12);
+
+      sweepTimerRef.current = window.setTimeout(sweep, 12000);
+    };
+    sweep();
+  }, []);
+
+  /** 播放一声清脆点缀（如风铃/星辉） */
+  const playSparkle = useCallback(
     (ctx: AudioContext, master: GainNode, freq: number, delay: number) => {
       const startTime = ctx.currentTime + delay;
 
-      // 主音 + 谐波，模拟金属钟声
-      const harmonics = [
-        { ratio: 1, level: 1.0, decay: 4.5 },
-        { ratio: 2.76, level: 0.4, decay: 3.0 },
-        { ratio: 5.4, level: 0.25, decay: 2.0 },
-      ];
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
 
-      harmonics.forEach((h) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
 
-        osc.type = "sine";
-        osc.frequency.value = freq * h.ratio;
+      // 极短衰减，清脆如水滴
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.06, startTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 1.5);
 
-        gain.gain.setValueAtTime(0, startTime);
-        gain.gain.linearRampToValueAtTime(h.level * 0.08, startTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(
-          0.0001,
-          startTime + h.decay
-        );
+      osc.connect(gain);
+      gain.connect(master);
 
-        osc.connect(gain);
-        gain.connect(master);
-
-        osc.start(startTime);
-        osc.stop(startTime + h.decay + 0.1);
-      });
+      osc.start(startTime);
+      osc.stop(startTime + 1.6);
     },
     []
   );
 
-  /** 定时触发钟声序列 */
-  const scheduleBells = useCallback(
+  /** 定时点缀星辉音 */
+  const scheduleSparkles = useCallback(
     (ctx: AudioContext, master: GainNode) => {
       const tick = () => {
-        // 随机选 1-3 个音符，间隔随机
-        const noteCount = Math.random() < 0.3 ? 3 : Math.random() < 0.6 ? 2 : 1;
+        // 60% 概率只响一声，30% 两声，10% 三声
+        const r = Math.random();
+        const noteCount = r < 0.6 ? 1 : r < 0.9 ? 2 : 3;
         for (let i = 0; i < noteCount; i++) {
-          const note =
-            pentatonicScale[Math.floor(Math.random() * pentatonicScale.length)];
-          const delay = i * (0.8 + Math.random() * 1.2);
-          playBell(ctx, master, note, delay);
+          const note = sparkleScale[Math.floor(Math.random() * sparkleScale.length)];
+          const delay = i * (1.5 + Math.random() * 1.5);
+          playSparkle(ctx, master, note, delay);
         }
-        // 下一次钟声：6-14 秒后
-        const nextDelay = 6000 + Math.random() * 8000;
-        bellTimerRef.current = window.setTimeout(tick, nextDelay);
+        // 下一次点缀：10-20 秒后（稀疏，不抢戏）
+        const nextDelay = 10000 + Math.random() * 10000;
+        sparkleTimerRef.current = window.setTimeout(tick, nextDelay);
       };
 
-      // 首次钟声 4 秒后
-      bellTimerRef.current = window.setTimeout(tick, 4000);
+      // 首次点缀 6 秒后（让 pad 先铺好底）
+      sparkleTimerRef.current = window.setTimeout(tick, 6000);
     },
-    [playBell]
+    [playSparkle]
   );
-
-  /** 呼吸感音量起伏 */
-  const startBreathing = useCallback((ctx: AudioContext, master: GainNode) => {
-    const breathe = () => {
-      const now = ctx.currentTime;
-      // 8 秒一个呼吸周期：渐强 → 渐弱
-      master.gain.cancelScheduledValues(now);
-      master.gain.setValueAtTime(master.gain.value, now);
-      master.gain.linearRampToValueAtTime(volume * 1.3, now + 4);
-      master.gain.linearRampToValueAtTime(volume * 0.7, now + 8);
-
-      breatheTimerRef.current = window.setTimeout(breathe, 8000);
-    };
-    breathe();
-  }, [volume]);
 
   /** 启动音乐 */
   const play = useCallback(() => {
@@ -154,14 +132,19 @@ export function useAmbientMusic() {
     masterGainRef.current = master;
 
     // 渐入
-    master.gain.linearRampToValueAtTime(volume, ctx.currentTime + 2);
+    master.gain.linearRampToValueAtTime(volume, ctx.currentTime + 3);
 
-    startDrone(ctx, master);
-    scheduleBells(ctx, master);
-    startBreathing(ctx, master);
+    startPad(ctx, master);
+
+    // pad 创建后启动滤波扫描
+    if (padNodesRef.current) {
+      startSweep(ctx, padNodesRef.current.filter);
+    }
+
+    scheduleSparkles(ctx, master);
 
     setIsPlaying(true);
-  }, [volume, startDrone, scheduleBells, startBreathing]);
+  }, [volume, startPad, startSweep, scheduleSparkles]);
 
   /** 停止音乐 */
   const stop = useCallback(() => {
@@ -173,32 +156,32 @@ export function useAmbientMusic() {
     const now = ctx.currentTime;
     master.gain.cancelScheduledValues(now);
     master.gain.setValueAtTime(master.gain.value, now);
-    master.gain.linearRampToValueAtTime(0, now + 1.5);
+    master.gain.linearRampToValueAtTime(0, now + 1.2);
 
     // 清除定时器
-    if (bellTimerRef.current) {
-      clearTimeout(bellTimerRef.current);
-      bellTimerRef.current = null;
+    if (sparkleTimerRef.current) {
+      clearTimeout(sparkleTimerRef.current);
+      sparkleTimerRef.current = null;
     }
-    if (breatheTimerRef.current) {
-      clearTimeout(breatheTimerRef.current);
-      breatheTimerRef.current = null;
+    if (sweepTimerRef.current) {
+      clearTimeout(sweepTimerRef.current);
+      sweepTimerRef.current = null;
     }
 
-    // 1.5 秒后真正停止振荡器
+    // 1.3 秒后真正停止振荡器
     setTimeout(() => {
-      droneNodesRef.current.forEach(({ osc }) => {
+      if (padNodesRef.current) {
         try {
-          osc.stop();
+          padNodesRef.current.osc.stop();
         } catch {
           // 已停止
         }
-      });
-      droneNodesRef.current = [];
+        padNodesRef.current = null;
+      }
       ctx.close();
       audioCtxRef.current = null;
       masterGainRef.current = null;
-    }, 1600);
+    }, 1400);
 
     setIsPlaying(false);
   }, []);
@@ -226,8 +209,8 @@ export function useAmbientMusic() {
   // 卸载时清理
   useEffect(() => {
     return () => {
-      if (bellTimerRef.current) clearTimeout(bellTimerRef.current);
-      if (breatheTimerRef.current) clearTimeout(breatheTimerRef.current);
+      if (sparkleTimerRef.current) clearTimeout(sparkleTimerRef.current);
+      if (sweepTimerRef.current) clearTimeout(sweepTimerRef.current);
       if (audioCtxRef.current) {
         try {
           audioCtxRef.current.close();
