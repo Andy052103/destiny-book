@@ -22,7 +22,7 @@ export default function ResultPage() {
 
   const handleShare = async () => {
     if (!result) return;
-    const ok = await shareResult(result.name);
+    const ok = await shareResult(result.primary.name);
     setShareState(ok ? "copied" : "error");
     setTimeout(() => setShareState("idle"), 2500);
   };
@@ -33,6 +33,10 @@ export default function ResultPage() {
   };
 
   if (!result) return null;
+
+  // 取前 5 个占比最高的人格作为构成展示（包含主人格）
+  const topSlices = result.breakdown.slice(0, 5);
+  const primaryColor = result.primary.color;
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-start px-6 py-10">
@@ -65,20 +69,121 @@ export default function ResultPage() {
           别装了，这就是你本来的样子
         </p>
 
-        {/* 卡牌展示 */}
+        {/* 主卡牌展示 */}
         <motion.div
           initial={{ opacity: 0, scale: 0.85, rotateY: -30 }}
           animate={{ opacity: 1, scale: 1, rotateY: 0 }}
           transition={{ delay: 0.5, duration: 1, ease: "easeOut" }}
         >
-          <PersonalityCard personality={result} />
+          <PersonalityCard personality={result.primary} />
+        </motion.div>
+
+        {/* 人格构成 */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.1, duration: 0.8 }}
+          className="w-full mt-10 p-6 rounded-lg border border-amber-500/25 bg-black/40 backdrop-blur-sm"
+        >
+          <div className="flex items-center gap-3 mb-5">
+            <span className="text-amber-500/70 text-sm">✦</span>
+            <h2 className="font-display text-sm tracking-[0.3em] text-amber-300/80 uppercase">
+              人格构成
+            </h2>
+            <div className="flex-1 h-px bg-gradient-to-r from-amber-500/30 to-transparent" />
+          </div>
+
+          <p className="font-body text-xs text-amber-200/50 italic mb-5 leading-relaxed">
+            没人是单一标签。你的人格由多种特质按比例混合，下面是你灵魂的配方：
+          </p>
+
+          <div className="space-y-3">
+            {topSlices.map((slice, idx) => {
+              const isPrimary = idx === 0;
+              const barColor = slice.personality.color;
+              return (
+                <div key={slice.personality.id} className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 w-32 shrink-0">
+                    <span
+                      className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+                      style={{
+                        backgroundColor: isPrimary ? barColor : "transparent",
+                        color: isPrimary ? "#0a0a0a" : barColor,
+                        border: isPrimary ? "none" : `1px solid ${barColor}55`,
+                      }}
+                    >
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <span
+                      className="text-xs font-medium truncate"
+                      style={{
+                        color: isPrimary ? "#f0d060" : "rgba(240,208,96,0.6)",
+                      }}
+                    >
+                      {slice.personality.name}
+                    </span>
+                  </div>
+                  <div className="flex-1 h-2 rounded-full bg-amber-950/40 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${slice.percent}%` }}
+                      transition={{
+                        delay: 1.3 + idx * 0.15,
+                        duration: 0.9,
+                        ease: "easeOut",
+                      }}
+                      className="h-full rounded-full"
+                      style={{
+                        background: isPrimary
+                          ? `linear-gradient(90deg, ${barColor}, #f0d060)`
+                          : `linear-gradient(90deg, ${barColor}aa, ${barColor}55)`,
+                        boxShadow: isPrimary ? `0 0 12px ${barColor}88` : "none",
+                      }}
+                    />
+                  </div>
+                  <span
+                    className="text-xs font-mono w-10 text-right"
+                    style={{
+                      color: isPrimary ? "#f0d060" : "rgba(240,208,96,0.5)",
+                    }}
+                  >
+                    {slice.percent}%
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 pt-4 border-t border-amber-500/10">
+            <p className="font-body text-xs text-amber-300/40 italic leading-relaxed">
+              {topSlices[0] && topSlices[1] && (
+                <>
+                  你以 <span style={{ color: primaryColor }}>{topSlices[0].percent}%</span> 的「
+                  {topSlices[0].personality.name}」为底色，混合着{" "}
+                  <span style={{ color: topSlices[1].personality.color }}>
+                    {topSlices[1].percent}%
+                  </span>{" "}
+                  的「{topSlices[1].personality.name}」
+                  {topSlices[2] && topSlices[2].percent > 0 ? (
+                    <>
+                      {" "}与 <span style={{ color: topSlices[2].personality.color }}>
+                        {topSlices[2].percent}%
+                      </span>{" "}
+                      的「{topSlices[2].personality.name}」
+                    </>
+                  ) : null}
+                  ，组成了独一无二的你。
+                </>
+              )}
+            </p>
+          </div>
         </motion.div>
 
         {/* 操作按钮 */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.2, duration: 0.8 }}
+          transition={{ delay: 1.5, duration: 0.8 }}
           className="flex flex-wrap items-center justify-center gap-4 mt-10"
         >
           <button onClick={handleShare} className="btn-gold flex items-center gap-2 text-xs">
@@ -114,7 +219,7 @@ export default function ResultPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.6, duration: 1 }}
+          transition={{ delay: 1.8, duration: 1 }}
           className="mt-12 flex items-center gap-3"
         >
           <div className="h-px w-20 bg-gradient-to-r from-transparent to-amber-500/40" />
