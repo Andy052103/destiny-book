@@ -6,7 +6,8 @@ import MusicToggle from "@/components/MusicToggle";
 import { useAmbientMusic } from "@/hooks/useAmbientMusic";
 
 export default function App() {
-  const { isPlaying, volume, toggle, changeVolume } = useAmbientMusic();
+  const { isPlaying, volume, toggle, changeVolume, error, isLoading } =
+    useAmbientMusic();
 
   return (
     <Router>
@@ -15,6 +16,8 @@ export default function App() {
         volume={volume}
         onToggle={toggle}
         onVolumeChange={changeVolume}
+        error={error}
+        isLoading={isLoading}
       />
       <Routes>
         <Route path="/" element={<WelcomePage />} />

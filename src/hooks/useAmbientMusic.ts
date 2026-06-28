@@ -5,13 +5,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * 使用 HTML5 Audio 播放本地 MP3 文件，循环播放
  * - 渐入渐出，避免突兀
  * - 支持音量调节
- * - 完整的错误处理和日志
+ * - 完整的错误处理和加载状态
+ * - 等音频加载完成才允许播放，避免 autoplay 被拦截
  */
 export function useAmbientMusic() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.4);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isReady, setIsReady] = useState(false);
 
   /** 初始化 audio 元素（仅一次） */
   const ensureAudio = useCallback(() => {
@@ -20,11 +23,11 @@ export function useAmbientMusic() {
     audio.loop = true;
     audio.preload = "auto";
     audio.volume = 0;
+    audio.crossOrigin = "anonymous";
 
-    // 监听加载错误
-    audio.addEventListener("error", (e) => {
-      const target = e.target as HTMLAudioElement;
-      const err = target.error;
+    // 加载错误
+    audio.addEventListener("error", () => {
+      const err = audio.error;
       let msg = "音频加载失败";
       if (err) {
         switch (err.code) {
@@ -42,14 +45,29 @@ export function useAmbientMusic() {
             break;
         }
       }
-      console.error("[音乐]", msg, { code: err?.code, src: target.src });
+      console.error("[音乐]", msg, { code: err?.code, src: audio.src });
       setError(msg);
+      setIsLoading(false);
+      setIsReady(false);
       setIsPlaying(false);
     });
 
+    // 加载完成，可以播放
     audio.addEventListener("canplaythrough", () => {
       console.log("[音乐] 音频加载完成，可以播放");
       setError(null);
+      setIsLoading(false);
+      setIsReady(true);
+    });
+
+    // 也监听 canplay，作为后备
+    audio.addEventListener("canplay", () => {
+      if (!isReady) {
+        console.log("[音乐] canplay 触发，音频可以播放");
+        setError(null);
+        setIsLoading(false);
+        setIsReady(true);
+      }
     });
 
     audio.addEventListener("play", () => {
@@ -60,6 +78,18 @@ export function useAmbientMusic() {
       console.log("[音乐] 已暂停");
     });
 
+    audio.addEventListener("waiting", () => {
+      console.log("[音乐] 缓冲中...");
+      setIsLoading(true);
+    });
+
+    audio.addEventListener("playing", () => {
+      console.log("[音乐] 缓冲完成，继续播放");
+      setIsLoading(false);
+    });
+
+    // 主动加载
+    audio.load();
     audioRef.current = audio;
     return audio;
   }, []);
@@ -69,6 +99,38 @@ export function useAmbientMusic() {
     const audio = ensureAudio();
     if (!audio) return;
 
+    // 如果还没加载完，会等 canplaythrough 后自动尝试播放
+    if (!isReady) {
+      console.log("[音乐] 音频还在加载，等加载完会自动播放");
+      setIsLoading(true);
+      const autoPlay = () => {
+        audio.removeEventListener("canplaythrough", autoPlay);
+        audio.volume = 0;
+        const playPromise = audio.play();
+        if (playPromise) {
+          playPromise
+            .then(() => {
+              const targetVol = volume;
+              const fadeInterval = setInterval(() => {
+                const next = Math.min(audio.volume + 0.04, targetVol);
+                audio.volume = next;
+                if (next >= targetVol) clearInterval(fadeInterval);
+              }, 80);
+              setIsPlaying(true);
+              setError(null);
+            })
+            .catch((err) => {
+              console.error("[音乐] 自动播放失败:", err.name, err.message);
+              setError("点击按钮重试");
+              setIsPlaying(false);
+            });
+        }
+      };
+      audio.addEventListener("canplaythrough", autoPlay);
+      return;
+    }
+
+    // 已加载，直接播放
     setError(null);
     audio.volume = 0;
     audio.currentTime = 0;
@@ -77,7 +139,6 @@ export function useAmbientMusic() {
     if (playPromise) {
       playPromise
         .then(() => {
-          console.log("[音乐] play() 成功");
           const targetVol = volume;
           const fadeInterval = setInterval(() => {
             const next = Math.min(audio.volume + 0.04, targetVol);
@@ -85,12 +146,13 @@ export function useAmbientMusic() {
             if (next >= targetVol) clearInterval(fadeInterval);
           }, 80);
           setIsPlaying(true);
+          setError(null);
         })
         .catch((err) => {
           console.error("[音乐] play() 被拒绝:", err.name, err.message);
-          let msg = "播放失败";
+          let msg = "播放失败，请再次点击";
           if (err.name === "NotAllowedError") {
-            msg = "浏览器拦截了自动播放，请再次点击按钮";
+            msg = "浏览器拦截了播放，请再次点击按钮";
           } else if (err.name === "NotSupportedError") {
             msg = "音频格式不支持或文件损坏";
           }
@@ -98,7 +160,7 @@ export function useAmbientMusic() {
           setIsPlaying(false);
         });
     }
-  }, [ensureAudio, volume]);
+  }, [ensureAudio, volume, isReady]);
 
   /** 停止音乐 */
   const stop = useCallback(() => {
@@ -134,8 +196,9 @@ export function useAmbientMusic() {
     }
   }, [isPlaying]);
 
-  // 卸载时清理
+  // 组件挂载时预加载音频
   useEffect(() => {
+    ensureAudio();
     return () => {
       const audio = audioRef.current;
       if (audio) {
@@ -143,7 +206,7 @@ export function useAmbientMusic() {
         audioRef.current = null;
       }
     };
-  }, []);
+  }, [ensureAudio]);
 
-  return { isPlaying, volume, toggle, changeVolume, error };
+  return { isPlaying, volume, toggle, changeVolume, error, isLoading, isReady };
 }

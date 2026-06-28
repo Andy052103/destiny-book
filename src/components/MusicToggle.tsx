@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { Volume2, VolumeX, Music } from "lucide-react";
+import { Volume2, VolumeX, Music, Loader2 } from "lucide-react";
 
 interface MusicToggleProps {
   isPlaying: boolean;
   volume: number;
   onToggle: () => void;
   onVolumeChange: (v: number) => void;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
 export default function MusicToggle({
@@ -13,8 +15,50 @@ export default function MusicToggle({
   volume,
   onToggle,
   onVolumeChange,
+  isLoading = false,
+  error = null,
 }: MusicToggleProps) {
   const [showSlider, setShowSlider] = useState(false);
+
+  // 加载中时显示旋转图标，错误时显示红色，正常时按状态显示
+  const getIcon = () => {
+    if (isLoading) {
+      return (
+        <Loader2
+          className="w-5 h-5 text-amber-400 relative z-10 animate-spin"
+          strokeWidth={1.5}
+        />
+      );
+    }
+    if (error) {
+      return (
+        <VolumeX
+          className="w-5 h-5 text-red-400/80 relative z-10"
+          strokeWidth={1.5}
+        />
+      );
+    }
+    if (isPlaying) {
+      return (
+        <Music
+          className="w-5 h-5 text-amber-300 relative z-10"
+          strokeWidth={1.5}
+        />
+      );
+    }
+    return (
+      <VolumeX
+        className="w-5 h-5 text-amber-500/60 relative z-10"
+        strokeWidth={1.5}
+      />
+    );
+  };
+
+  const getLabel = () => {
+    if (isLoading) return "音频加载中...";
+    if (error) return error;
+    return isPlaying ? "关闭背景音乐" : "开启背景音乐";
+  };
 
   return (
     <div
@@ -44,23 +88,30 @@ export default function MusicToggle({
         </div>
       )}
 
+      {/* 错误提示气泡 */}
+      {error && showSlider && (
+        <div className="absolute top-12 right-0 px-3 py-2 rounded-sm bg-red-950/90 border border-red-500/40 text-red-300 text-xs whitespace-nowrap max-w-[200px]">
+          {error}
+        </div>
+      )}
+
       {/* 开关按钮 */}
       <button
         onClick={onToggle}
-        className="relative w-11 h-11 flex items-center justify-center rounded-full bg-black/80 border border-amber-500/40 backdrop-blur-sm transition-all duration-300 hover:border-amber-400 hover:shadow-[0_0_20px_rgba(240,208,96,0.3)] group"
-        aria-label={isPlaying ? "关闭背景音乐" : "开启背景音乐"}
-        title={isPlaying ? "关闭背景音乐" : "开启背景音乐"}
+        className={`relative w-11 h-11 flex items-center justify-center rounded-full bg-black/80 border backdrop-blur-sm transition-all duration-300 group ${
+          error
+            ? "border-red-500/50 hover:border-red-400 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+            : "border-amber-500/40 hover:border-amber-400 hover:shadow-[0_0_20px_rgba(240,208,96,0.3)]"
+        }`}
+        aria-label={getLabel()}
+        title={getLabel()}
       >
         {/* 播放时的脉冲光圈 */}
-        {isPlaying && (
+        {isPlaying && !isLoading && (
           <span className="absolute inset-0 rounded-full border border-amber-400/40 animate-ping-slow" />
         )}
 
-        {isPlaying ? (
-          <Music className="w-5 h-5 text-amber-300 relative z-10" strokeWidth={1.5} />
-        ) : (
-          <VolumeX className="w-5 h-5 text-amber-500/60 relative z-10" strokeWidth={1.5} />
-        )}
+        {getIcon()}
       </button>
     </div>
   );
